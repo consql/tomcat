@@ -1,0 +1,170 @@
+JRE(java Runtime Environment,java运行环境)，JRE是JDK的子集
+#########################################################################################################################
+java Servlet
+Servlet是java扩展Web服务器功能的组件guifan
+常见Servlet容器
+IMB     websphere
+Oracle  weblogic
+Apache  tomcat
+Redhat  jboss
+#####################################################################################################################
+安装tomcat
+yum -y install java-1.8.0-openjdk
+yum -y install java-1.8.0-openjdk-headless
+########################################################################################################################
+安装部署tomcat
+ tar -xf apache-tomcat-8.0.30.tar.gz
+ mv apache-tomcat-8.0.30 /usr/local/tomcat
+ls /usr/local/tomcat
+bin/        主程序目录
+lib/        库文件目录
+logs/       日志目录
+temp/       临时目录
+work/       自动编译目录jsp代码转换servlet
+conf/       配置文件目录
+webapps/    默认页面目录
+#########################################################################################################################
+启动tomcat
+ /usr/local/tomcat/bin/startup.sh
+测试页面默认在/usr/local/tomcat/webapps/ROOT/index.jsp
+netstat -nutlp | grep java 查看java监听端口：8080 ：8005 ：8009 三个端口
+8005端口启动慢可以使用命令urandom替换random
+mv /dev/random  /dev/random.bak   
+ln -s /dev/urandom  /dev/random
+测试
+firfox http://192.168.2.100:8080  会看到测试页面
+关闭服务 /usr/local/tomcat/bin/shutdown.sh
+重起服务 /usr/lcoal/tomcat/bin/shutdown.sh   /usr/local/tomcat/bin/startup.sh
+验证端口
+########################################################################################################################
+使用tomcat部署虚拟主机
+配置文件vim /usr/local/tomcat/conf/server.xml 
+?xml version='1.0' encoding='utf-8'?>
+<Server port="8005" shutdown="SHUTDOWN">
+  <Listener className="org.apache.catalina.startup.VersionLoggerListener" />
+<Connector port="8080" protocol="HTTP/1.1"connectionTimeout="20000"redirectPort="8443" />
+ <Connector port="8009" protocol="AJP/1.3" redirectPort="8443" />
+<Engine name="Catalina" defaultHost="localhost">   #所有的Host必须在Engine 下
+<Host name="localhost"  appBase="webapps"
+            unpackWARs="true" autoDeploy="true">
+        <Valve className="org.apache.catalina.valves.AccessLogValve" directory="logs"
+               prefix="localhost_access_log" suffix=".txt"
+               pattern="%h %l %u %t &quot;%r&quot; %s %b" />
+
+      </Host>
+    </Engine>
+  </Service>
+</Server>
+################################################################################################3
+添加虚拟主机
+<Host name="www.a.com"  appBase="a" unpackWARs="true" autoDeploy="true">
+<Context path="" docBase="base" reloadable="ture"/>
+</Host>
+
+//appBase定义基础目录，基础目录下可以有很多项目，默认项目ROOT
+//docBase定义首页路径，默认为ROOT
+//path指定用户访问的URL，docBase指定页面存储的位置
+tomcat支持ssl加密网站
+创建加密用的私钥和证书文件
+keytool -genkeypair -alias tomcat -keyalg RSA -keystore /usr/local/tomcat/keystore
+//-genkeypair 生成密钥对
+//-alias tomcat 密钥别名
+//-keyalg RSA 定义密钥算法
+//-keystore   定义密钥文件存储在：/usr/local/tomcat/keystore
+修改配置文件
+85行<Connector port="8443"...
+    keystoreFile="/usr/local/tomcat/keystore" keystorePass="111111" />
+重起tomcat服务验证
+firefox https://www.a.com:8443
+#######################################################################################################################3
+配置tomcat日志
+为每个虚拟主机设置不同的日志文件
+vim /usr/local/tomcat/conf/server.xml
+<Host name="www.a.com" appBase="a" unpackWARS="true" autoDeploy="true">
+<Context path="/test" docBase="/var/www/html/" />
+#从默认localhost虚拟主机中把Valve这段复制过来，适当修改下即可
+<Valve className="org.apache.catalina.valves.AccessLogValve" directory="logs"
+               prefix=" a_access" suffix=".txt"
+               pattern="%h %l %u %t &quot;%r&quot; %s %b" />
+</Host>
+重起服务
+Nginx反向代理tomcat
+修改nginx配置文件
+vim /usr/lcoal/nginx/conf/nginx.conf
+http {
+      upstream toms {
+               server 192.168.2.100:8080;
+               server  192.168.2.200:8080;
+
+                     }
+
+server {
+      listen 80;
+server_name localhost;
+   location / {
+       proxy_pass http://toms; 
+}
+}
+}
+
+Varnish代理服务器
+部署Varnish安装 gcc  readline-devel ncurses-devel pcre-devel
+yum localinstall python-docutils-0.11
+useradd -s /sbin/nologin varnish //创建用户
+tar -xf varnish-5.2.1.tar.gz
+cd varnish-5.2.1
+./configure
+make && make install
+cp etc/example.vcl   /usr/local/etc/default.vcl //拷贝配置文件
+修改配置文件
+vim /usr/local/etc/default.vcl
+backend default {
+  .host = "192.168.2.100";   //后端服务器的ip地址
+   .port= "80";
+}
+启动服务
+varnishd -f /usr/local/etc/default.vcl
+选项
+varnishd -s malloc,128M//定义varnish使用内存作为缓存，空间为128M
+varnishd -s file,/var/lib/varnish_storage.bin,1G//定义varnish使用文件作为缓存
+清除缓存内容命令格式
+varnishadm 
+
+varnish> ban req.url ~.*
+varnishlog  //varnish日志
+varnishncsa //访问日志
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
